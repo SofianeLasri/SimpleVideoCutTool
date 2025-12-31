@@ -370,9 +370,10 @@ class VideoProcessor(QObject):
         if self._session_logger:
             self._session_logger.info(f"=== Fin de session: {message} ===")
 
+        # Libérer le flag AVANT d'émettre le signal pour que l'UI se mette à jour correctement
+        self._is_encoding = False
         self.encoding_finished.emit(success, message)
 
     def _on_thread_finished(self) -> None:
         """Gère la fin du thread."""
-        self._is_encoding = False
-        self._worker = None
+        self._worker = None  # Nettoyer la référence au worker
