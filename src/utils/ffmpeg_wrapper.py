@@ -1,13 +1,15 @@
 """Wrapper pour les commandes FFmpeg.
 
 Ce module construit les commandes FFmpeg pour:
-- L'encodage H264 + AAC
+- L'encodage H264 + AAC (avec support encodeurs matériels)
 - La découpe multi-segments
 - Le tracking de progression
 """
 
 from __future__ import annotations
 
+import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
@@ -15,11 +17,97 @@ from utils.paths import get_ffmpeg_path, get_ffprobe_path
 
 
 # Paramètres d'encodage H264
-H264_PRESET: Final[str] = "medium"
 H264_CRF: Final[str] = "18"
 
 # Paramètres audio AAC
 AAC_BITRATE: Final[str] = "192k"
+
+
+@lru_cache(maxsize=1)
+def detect_available_encoder() -> tuple[str, str]:
+    """Détecte le meilleur encodeur H264 disponible.
+
+    Teste les encodeurs matériels dans l'ordre de préférence:
+    NVENC (NVIDIA) > Quick Sync (Intel) > AMF (AMD) > libx264 (CPU)
+
+    Returns:
+        Tuple (encoder_name, preset) pour FFmpeg
+    """
+    ffmpeg = get_ffmpeg_path()
+
+    # Liste des encodeurs matériels avec leur preset qualité max
+    encoders = [
+        ("h264_nvenc", "p7"),      # NVIDIA - p7 = slowest/best quality
+        ("h264_qsv", "veryslow"),  # Intel Quick Sync
+        ("h264_amf", "quality"),   # AMD AMF
+    ]
+
+    for encoder, preset in encoders:
+        try:
+            # Vérifier si l'encodeur est listé
+            result = subprocess.run(
+                [str(ffmpeg), "-hide_banner", "-encoders"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if encoder not in result.stdout:
+                continue
+
+            # Vérifier si l'encodeur fonctionne vraiment (test d'encodage)
+            test = subprocess.run(
+                [
+                    str(ffmpeg), "-hide_banner",
+                    "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
+                    "-c:v", encoder, "-f", "null", "-"
+                ],
+                capture_output=True,
+                timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if test.returncode == 0:
+                return (encoder, preset)
+
+        except (subprocess.TimeoutExpired, Exception):
+            continue
+
+    # Fallback: encodage logiciel avec preset medium
+    return ("libx264", "medium")
+
+
+def get_video_codec_args() -> list[str]:
+    """Retourne les arguments de codec vidéo pour FFmpeg.
+
+    Utilise l'encodeur matériel si disponible, sinon libx264.
+
+    Returns:
+        Liste d'arguments FFmpeg pour le codec vidéo
+    """
+    encoder, preset = detect_available_encoder()
+
+    if encoder == "libx264":
+        return ["-c:v", "libx264", "-preset", preset, "-crf", H264_CRF]
+    elif encoder == "h264_nvenc":
+        # NVENC: utiliser CQ (Constant Quality) au lieu de CRF
+        return ["-c:v", "h264_nvenc", "-preset", preset, "-cq", H264_CRF, "-rc", "vbr"]
+    elif encoder == "h264_qsv":
+        return ["-c:v", "h264_qsv", "-preset", preset, "-global_quality", H264_CRF]
+    elif encoder == "h264_amf":
+        return ["-c:v", "h264_amf", "-quality", preset, "-rc", "cqp", "-qp_i", H264_CRF, "-qp_p", H264_CRF]
+
+    # Fallback par défaut
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", H264_CRF]
+
+
+def get_encoder_name() -> str:
+    """Retourne le nom de l'encodeur actuellement utilisé.
+
+    Returns:
+        Nom de l'encodeur (ex: "h264_nvenc", "libx264")
+    """
+    encoder, _ = detect_available_encoder()
+    return encoder
 
 
 def build_probe_command(input_path: str | Path) -> list[str]:
@@ -69,9 +157,7 @@ def build_single_segment_command(
         "-i", str(input_path),
         "-ss", str(start_seconds),
         "-t", str(duration),
-        "-c:v", "libx264",
-        "-preset", H264_PRESET,
-        "-crf", H264_CRF,
+        *get_video_codec_args(),
         "-c:a", "aac",
         "-b:a", AAC_BITRATE,
         "-progress", "pipe:1",
@@ -142,9 +228,7 @@ def build_multi_segment_command(
         "-filter_complex", filter_complex,
         "-map", "[outv]",
         "-map", "[outa]",
-        "-c:v", "libx264",
-        "-preset", H264_PRESET,
-        "-crf", H264_CRF,
+        *get_video_codec_args(),
         "-c:a", "aac",
         "-b:a", AAC_BITRATE,
         "-progress", "pipe:1",
@@ -181,9 +265,7 @@ def build_video_only_multi_segment_command(
             "-i", str(input_path),
             "-ss", str(start),
             "-t", str(duration),
-            "-c:v", "libx264",
-            "-preset", H264_PRESET,
-            "-crf", H264_CRF,
+            *get_video_codec_args(),
             "-an",  # Pas d'audio
             "-progress", "pipe:1",
             "-nostats",
@@ -216,9 +298,7 @@ def build_video_only_multi_segment_command(
         "-i", str(input_path),
         "-filter_complex", filter_complex,
         "-map", "[outv]",
-        "-c:v", "libx264",
-        "-preset", H264_PRESET,
-        "-crf", H264_CRF,
+        *get_video_codec_args(),
         "-an",
         "-progress", "pipe:1",
         "-nostats",
@@ -330,11 +410,7 @@ def build_multi_segment_with_separators_command(
     if has_audio:
         cmd.extend(["-map", "[outa]"])
 
-    cmd.extend([
-        "-c:v", "libx264",
-        "-preset", H264_PRESET,
-        "-crf", H264_CRF,
-    ])
+    cmd.extend(get_video_codec_args())
 
     if has_audio:
         cmd.extend(["-c:a", "aac", "-b:a", AAC_BITRATE])

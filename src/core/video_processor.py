@@ -21,6 +21,7 @@ from utils.ffmpeg_wrapper import (
     build_multi_segment_with_separators_command,
     build_video_only_multi_segment_command,
     calculate_total_duration_with_separators,
+    get_encoder_name,
     parse_progress_line,
     parse_time_to_ms,
 )
@@ -118,9 +119,10 @@ class EncodingWorker(QThread):
                         )
                         self.progress.emit(progress_pct)
 
-                    # Logger les lignes non-progression
+                    # Logger et afficher les lignes non-progression (logs FFmpeg)
                     if line and "=" not in line:
                         self._session_logger.debug(line)
+                        self.log_message.emit(line, "DEBUG")
 
                     # Détecter la fin d'un bloc progress
                     if "progress=" in line:
@@ -254,6 +256,17 @@ class VideoProcessor(QObject):
         # Créer le logger de session
         video_name: str = Path(input_path).stem
         self._session_logger, self._log_file_path = create_encoding_session_logger(video_name)
+
+        # Afficher l'encodeur utilisé
+        encoder_name = get_encoder_name()
+        encoder_display = {
+            "h264_nvenc": "NVIDIA NVENC (GPU)",
+            "h264_qsv": "Intel Quick Sync (GPU)",
+            "h264_amf": "AMD AMF (GPU)",
+            "libx264": "libx264 (CPU)"
+        }.get(encoder_name, encoder_name)
+        self.log_message.emit(f"Encodeur: {encoder_display}", "INFO")
+        self._session_logger.info(f"Encodeur: {encoder_display}")
 
         self._session_logger.info(f"Source: {input_path}")
         self._session_logger.info(f"Destination: {output_path}")

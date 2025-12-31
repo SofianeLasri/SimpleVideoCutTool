@@ -33,7 +33,7 @@ class LogViewerWidget(QWidget):
             parent: Widget parent
         """
         super().__init__(parent)
-        self._is_expanded: bool = True
+        self._is_expanded: bool = False  # Fermé par défaut
         self._theme = ThemeManager.instance()
         self._setup_ui()
 
@@ -52,7 +52,7 @@ class LogViewerWidget(QWidget):
         header_layout: QHBoxLayout = QHBoxLayout()
         header_layout.setContentsMargins(5, 2, 5, 2)
 
-        self._btn_toggle: QPushButton = QPushButton("v Logs d'encodage")
+        self._btn_toggle: QPushButton = QPushButton("> Logs d'encodage")  # Fermé par défaut
         self._btn_toggle.setFlat(True)
         self._btn_toggle.clicked.connect(self._toggle_expanded)
 
@@ -78,6 +78,7 @@ class LogViewerWidget(QWidget):
         self._text_edit.setReadOnly(True)
         self._text_edit.setMinimumHeight(80)
         self._text_edit.setMaximumHeight(150)
+        self._text_edit.setVisible(False)  # Fermé par défaut
 
         main_layout.addWidget(self._text_edit)
 
