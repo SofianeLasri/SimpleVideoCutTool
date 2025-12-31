@@ -685,6 +685,9 @@ class MainWindow(QMainWindow):
             "<p>Outil de découpe vidéo utilisant FFmpeg.</p>"
             "<p>Développé par Sofiane Lasri<br>"
             '<a href="https://sofianelasri.fr">https://sofianelasri.fr</a></p>'
+            "<p>Code source :<br>"
+            '<a href="https://github.com/SofianeLasri/SimpleVideoCutTool">'
+            "https://github.com/SofianeLasri/SimpleVideoCutTool</a></p>"
             "<p>Version 1.0</p>"
         )
 
