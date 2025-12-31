@@ -28,14 +28,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..core.cut_manager import CutManager
-from ..core.video_info import VideoInfo, VideoMetadata
-from ..core.video_processor import VideoProcessor
-from ..utils.logging_config import get_app_logger
-from .control_panel import ControlPanel
-from .log_viewer import LogViewerWidget
-from .timeline_widget import TimelineWidget
-from .video_player import VideoPlayerWidget
+from core.cut_manager import CutManager
+from core.video_info import VideoInfo, VideoMetadata
+from core.video_processor import VideoProcessor
+from utils.logging_config import get_app_logger
+from ui.control_panel import ControlPanel
+from ui.log_viewer import LogViewerWidget
+from ui.timeline_widget import TimelineWidget
+from ui.video_player import VideoPlayerWidget
 
 if TYPE_CHECKING:
     pass

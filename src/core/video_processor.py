@@ -16,16 +16,16 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QThread, Signal
 
-from ..utils.ffmpeg_wrapper import (
+from utils.ffmpeg_wrapper import (
     build_multi_segment_command,
     build_video_only_multi_segment_command,
     parse_progress_line,
     parse_time_to_ms,
 )
-from ..utils.logging_config import create_encoding_session_logger, get_app_logger
+from utils.logging_config import create_encoding_session_logger, get_app_logger
 
 if TYPE_CHECKING:
-    from .video_info import VideoMetadata
+    from core.video_info import VideoMetadata
 
 
 class EncodingWorker(QThread):

@@ -13,7 +13,7 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .paths import get_logs_dir
+from utils.paths import get_logs_dir
 
 if TYPE_CHECKING:
     pass

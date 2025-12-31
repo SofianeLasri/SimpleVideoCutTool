@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QRect, Signal
+from PySide6.QtCore import Qt, QRect, Signal, QPoint
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen, QBrush, QFont
 from PySide6.QtWidgets import QWidget, QSizePolicy
 
 if TYPE_CHECKING:
-    from ..core.cut_manager import CutRegion
+    from core.cut_manager import CutRegion
 
 
 class TimelineWidget(QWidget):
@@ -267,9 +267,9 @@ class TimelineWidget(QWidget):
         # Triangle indicateur
         painter.setBrush(QBrush(self.COLOR_MARKER_A))
         painter.drawPolygon([
-            (x - 6, track_rect.top()),  # type: ignore[list-item]
-            (x + 6, track_rect.top()),  # type: ignore[list-item]
-            (x, track_rect.top() + 8),  # type: ignore[list-item]
+            QPoint(x - 6, track_rect.top()),
+            QPoint(x + 6, track_rect.top()),
+            QPoint(x, track_rect.top() + 8),
         ])
 
     def _draw_playhead(self, painter: QPainter, track_rect: QRect) -> None:
@@ -284,9 +284,9 @@ class TimelineWidget(QWidget):
         # Triangle en haut
         painter.setBrush(QBrush(self.COLOR_PLAYHEAD))
         painter.drawPolygon([
-            (x - 5, track_rect.top() - 5),  # type: ignore[list-item]
-            (x + 5, track_rect.top() - 5),  # type: ignore[list-item]
-            (x, track_rect.top() + 3),  # type: ignore[list-item]
+            QPoint(x - 5, track_rect.top() - 5),
+            QPoint(x + 5, track_rect.top() - 5),
+            QPoint(x, track_rect.top() + 3),
         ])
 
     # Conversion coordonnées

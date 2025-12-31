@@ -18,12 +18,16 @@ block_cipher = None
 
 a = Analysis(
     [str(PROJECT_ROOT / 'src' / 'main.py')],
-    pathex=[str(PROJECT_ROOT)],
+    pathex=[str(PROJECT_ROOT), str(PROJECT_ROOT / 'src')],
     binaries=[],
     datas=[
         # FFmpeg binaires
         (str(PROJECT_ROOT / 'ffmpeg' / 'ffmpeg.exe'), 'ffmpeg'),
         (str(PROJECT_ROOT / 'ffmpeg' / 'ffprobe.exe'), 'ffmpeg'),
+        # Modules Python (core, ui, utils)
+        (str(PROJECT_ROOT / 'src' / 'core'), 'core'),
+        (str(PROJECT_ROOT / 'src' / 'ui'), 'ui'),
+        (str(PROJECT_ROOT / 'src' / 'utils'), 'utils'),
     ],
     hiddenimports=[
         'PySide6.QtMultimedia',

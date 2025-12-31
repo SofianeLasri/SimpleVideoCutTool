@@ -1,8 +1,8 @@
 """Core business logic pour Simple Video Cut Tool."""
 
-from .video_info import VideoInfo, VideoMetadata
-from .cut_manager import CutManager, CutRegion
-from .video_processor import VideoProcessor
+from core.video_info import VideoInfo, VideoMetadata
+from core.cut_manager import CutManager, CutRegion
+from core.video_processor import VideoProcessor
 
 __all__ = [
     "VideoInfo",

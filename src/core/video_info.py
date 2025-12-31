@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..utils.ffmpeg_wrapper import build_probe_command
-from ..utils.logging_config import get_app_logger
+from utils.ffmpeg_wrapper import build_probe_command
+from utils.logging_config import get_app_logger
 
 
 @dataclass(frozen=True)

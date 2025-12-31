@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
-from .paths import get_ffmpeg_path, get_ffprobe_path
+from utils.paths import get_ffmpeg_path, get_ffprobe_path
 
 
 # Paramètres d'encodage H264
