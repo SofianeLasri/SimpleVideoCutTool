@@ -57,12 +57,12 @@ class LogViewerWidget(QWidget):
         self._btn_toggle.clicked.connect(self._toggle_expanded)
 
         self._btn_copy: QPushButton = QPushButton("Copier")
-        self._btn_copy.setFixedWidth(60)
+        self._btn_copy.setFixedWidth(72)
         self._btn_copy.setToolTip("Copier les logs dans le presse-papiers")
         self._btn_copy.clicked.connect(self._copy_to_clipboard)
 
         self._btn_clear: QPushButton = QPushButton("Effacer")
-        self._btn_clear.setFixedWidth(60)
+        self._btn_clear.setFixedWidth(72)
         self._btn_clear.setToolTip("Effacer les logs affichés")
         self._btn_clear.clicked.connect(self.clear)
 

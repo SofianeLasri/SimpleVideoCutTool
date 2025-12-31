@@ -53,6 +53,7 @@ class VideoPlayerWidget(QWidget):
         self._setup_ui()
         self._setup_media_player()
         self._current_file: str | None = None
+        self._show_first_frame: bool = False
 
     def _setup_ui(self) -> None:
         """Configure l'interface du widget."""
@@ -133,6 +134,7 @@ class VideoPlayerWidget(QWidget):
             return False
 
         self._current_file = str(path)
+        self._show_first_frame = True  # Afficher la première frame au chargement
         url: QUrl = QUrl.fromLocalFile(str(path))
         self._player.setSource(url)
 
@@ -254,6 +256,11 @@ class VideoPlayerWidget(QWidget):
     def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
         """Gère le changement de statut média."""
         if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            # Afficher la première frame uniquement au premier chargement
+            if self._show_first_frame:
+                self._show_first_frame = False
+                self._player.setPosition(0)
+                self._player.pause()
             self.media_loaded.emit(True)
         elif status == QMediaPlayer.MediaStatus.InvalidMedia:
             self.error_occurred.emit("Format vidéo non supporté")
