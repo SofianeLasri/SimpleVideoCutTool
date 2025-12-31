@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 from core.cut_manager import CutManager
 from core.video_info import VideoInfo, VideoMetadata
 from core.video_processor import VideoProcessor
+from utils.ffmpeg_wrapper import is_av1_hardware_decode_available
 from utils.logging_config import get_app_logger
 from ui.control_panel import ControlPanel
 from ui.dialogs import RegionEditDialog
@@ -308,6 +309,18 @@ class MainWindow(QMainWindow):
             self._status_label.setText("Vidéo chargée")
             self._logger.info(f"Vidéo chargée: {self._video_metadata}")
 
+            # Avertissement pour AV1 si pas de décodage matériel
+            if (self._video_metadata.video_codec.lower() == "av1"
+                    and not is_av1_hardware_decode_available()):
+                QMessageBox.warning(
+                    self,
+                    "Codec AV1 non supporté",
+                    "Ce fichier utilise le codec AV1, mais votre matériel "
+                    "ne supporte pas son décodage.\n\n"
+                    "La prévisualisation risque de ne pas fonctionner.\n\n"
+                    "L'export fonctionnera normalement (FFmpeg)."
+                )
+
         except Exception as e:
             self._logger.error(f"Erreur chargement: {e}")
             QMessageBox.critical(
@@ -476,12 +489,34 @@ class MainWindow(QMainWindow):
             self._logger.debug("Média chargé avec succès")
         else:
             self._logger.error("Échec du chargement média")
+            self._show_playback_error_warning()
 
     @Slot(str)
     def _on_player_error(self, message: str) -> None:
         """Gère les erreurs du lecteur."""
         self._logger.error(f"Erreur lecteur: {message}")
         self._log_viewer.append_log(message, "ERROR")
+
+    def _show_playback_error_warning(self) -> None:
+        """Affiche un avertissement si la lecture échoue."""
+        codec = self._video_metadata.video_codec if self._video_metadata else None
+
+        if codec and codec.lower() == "av1":
+            QMessageBox.warning(
+                self,
+                "Codec AV1 non supporté",
+                "La prévisualisation des vidéos AV1 n'est pas disponible "
+                "sur ce système (décodage matériel requis).\n\n"
+                "L'export fonctionnera normalement car il utilise FFmpeg.\n\n"
+                "Pour prévisualiser, convertissez la vidéo en H.264."
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                "Erreur de lecture",
+                "Impossible de lire cette vidéo pour la prévisualisation.\n\n"
+                "L'export pourrait quand même fonctionner."
+            )
 
     # Slots - Export
     @Slot()

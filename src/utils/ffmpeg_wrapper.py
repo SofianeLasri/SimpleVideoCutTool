@@ -110,6 +110,62 @@ def get_encoder_name() -> str:
     return encoder
 
 
+@lru_cache(maxsize=1)
+def is_av1_hardware_decode_available() -> bool:
+    """Vérifie si le décodage matériel AV1 est disponible.
+
+    Teste les décodeurs matériels AV1 en essayant réellement de décoder:
+    - av1_cuvid (NVIDIA NVDEC)
+    - av1_qsv (Intel Quick Sync)
+
+    Returns:
+        True si un décodeur matériel AV1 fonctionne réellement
+    """
+    ffmpeg = get_ffmpeg_path()
+
+    # Liste des décodeurs matériels à tester
+    hw_decoders = ["av1_cuvid", "av1_qsv"]
+
+    for decoder in hw_decoders:
+        try:
+            # Créer un flux AV1 de test et essayer de le décoder avec le HW decoder
+            # On encode en AV1 avec libaom puis on décode avec le décodeur matériel
+            test = subprocess.run(
+                [
+                    str(ffmpeg), "-hide_banner",
+                    "-f", "lavfi", "-i", "testsrc=duration=0.1:size=64x64:rate=1",
+                    "-c:v", "libaom-av1", "-cpu-used", "8", "-f", "nut", "pipe:1"
+                ],
+                capture_output=True,
+                timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+
+            if test.returncode != 0:
+                continue
+
+            # Tester le décodage matériel
+            decode_test = subprocess.run(
+                [
+                    str(ffmpeg), "-hide_banner",
+                    "-c:v", decoder, "-i", "pipe:0",
+                    "-f", "null", "-"
+                ],
+                input=test.stdout,
+                capture_output=True,
+                timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+
+            if decode_test.returncode == 0:
+                return True
+
+        except (subprocess.TimeoutExpired, Exception):
+            continue
+
+    return False
+
+
 def build_probe_command(input_path: str | Path) -> list[str]:
     """Construit la commande ffprobe pour extraire les métadonnées.
 
