@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -70,6 +71,9 @@ class MainWindow(QMainWindow):
         """Configure l'interface utilisateur."""
         self.setWindowTitle("Simple Video Cut Tool")
         self.setMinimumSize(900, 700)
+
+        # Barre de menu
+        self._setup_menu_bar()
 
         # Widget central
         central_widget: QWidget = QWidget()
@@ -184,6 +188,43 @@ class MainWindow(QMainWindow):
         self._theme_manager.toggle_theme()
         self._update_toolbar_icons()
 
+    def _setup_menu_bar(self) -> None:
+        """Configure la barre de menu."""
+        menubar = self.menuBar()
+
+        # Menu Fichier
+        file_menu = menubar.addMenu("&Fichier")
+
+        open_action = QAction("&Ouvrir...", self)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
+        open_action.triggered.connect(self._open_video)
+        file_menu.addAction(open_action)
+
+        self._action_destination = QAction("&Destination...", self)
+        self._action_destination.triggered.connect(self._set_output_destination)
+        file_menu.addAction(self._action_destination)
+
+        file_menu.addSeparator()
+
+        self._action_export = QAction("&Exporter", self)
+        self._action_export.setShortcut(QKeySequence("Ctrl+E"))
+        self._action_export.triggered.connect(self._start_export)
+        file_menu.addAction(self._action_export)
+
+        file_menu.addSeparator()
+
+        quit_action = QAction("&Quitter", self)
+        quit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+
+        # Menu Aide
+        help_menu = menubar.addMenu("&Aide")
+
+        about_action = QAction("À &propos", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
     def _setup_status_bar(self) -> None:
         """Configure la barre de statut."""
         status_bar: QStatusBar = QStatusBar()
@@ -252,9 +293,13 @@ class MainWindow(QMainWindow):
         self._btn_destination.setEnabled(has_video and not is_encoding)
         self._btn_open.setEnabled(not is_encoding)
 
-        # Bouton export
+        # Bouton et action export
         can_export: bool = has_video and has_output and has_regions and not is_encoding
         self._btn_export.setEnabled(can_export)
+        self._action_export.setEnabled(can_export)
+
+        # Action destination (synchronisée avec le bouton)
+        self._action_destination.setEnabled(has_video and not is_encoding)
 
         # Undo/Redo
         self._control_panel.set_undo_enabled(self._cut_manager.can_undo())
@@ -631,6 +676,18 @@ class MainWindow(QMainWindow):
         self._log_viewer.append_log(message, level)
 
     # Utilitaires
+    def _show_about(self) -> None:
+        """Affiche la boîte de dialogue À propos."""
+        QMessageBox.about(
+            self,
+            "À propos de Simple Video Cut Tool",
+            "<h3>Simple Video Cut Tool</h3>"
+            "<p>Outil de découpe vidéo utilisant FFmpeg.</p>"
+            "<p>Développé par Sofiane Lasri<br>"
+            '<a href="https://sofianelasri.fr">https://sofianelasri.fr</a></p>'
+            "<p>Version 1.0</p>"
+        )
+
     @staticmethod
     def _format_time(ms: int) -> str:
         """Formate des millisecondes en HH:MM:SS."""
