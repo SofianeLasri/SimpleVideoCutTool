@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui.theme import ThemeManager
+
 if TYPE_CHECKING:
     pass
 
@@ -112,7 +114,12 @@ class ControlPanel(QWidget):
         """
         super().__init__(parent)
         self._is_playing: bool = False
+        self._theme = ThemeManager.instance()
         self._setup_ui()
+        self._update_icons()
+
+        # Mettre à jour les icônes au changement de thème
+        self._theme.theme_changed.connect(self._update_icons)
 
     def _setup_ui(self) -> None:
         """Configure l'interface du panneau."""
@@ -125,29 +132,29 @@ class ControlPanel(QWidget):
         playback_layout.setSpacing(5)
 
         # Boutons de navigation
-        self._btn_go_start: QPushButton = QPushButton("|<")
-        self._btn_go_start.setFixedWidth(35)
+        self._btn_go_start: QPushButton = QPushButton()
+        self._btn_go_start.setFixedSize(36, 36)
         self._btn_go_start.setToolTip("Aller au début")
         self._btn_go_start.clicked.connect(self.go_to_start_clicked)
 
-        self._btn_step_back: QPushButton = QPushButton("<")
-        self._btn_step_back.setFixedWidth(35)
+        self._btn_step_back: QPushButton = QPushButton()
+        self._btn_step_back.setFixedSize(36, 36)
         self._btn_step_back.setToolTip("Reculer de 1 seconde")
         self._btn_step_back.clicked.connect(self.step_backward_clicked)
 
         # Bouton Play/Pause
-        self._btn_play_pause: QPushButton = QPushButton("Lecture")
-        self._btn_play_pause.setFixedWidth(80)
+        self._btn_play_pause: QPushButton = QPushButton()
+        self._btn_play_pause.setFixedSize(48, 36)
         self._btn_play_pause.setToolTip("Lecture / Pause")
         self._btn_play_pause.clicked.connect(self._on_play_pause_clicked)
 
-        self._btn_step_forward: QPushButton = QPushButton(">")
-        self._btn_step_forward.setFixedWidth(35)
+        self._btn_step_forward: QPushButton = QPushButton()
+        self._btn_step_forward.setFixedSize(36, 36)
         self._btn_step_forward.setToolTip("Avancer de 1 seconde")
         self._btn_step_forward.clicked.connect(self.step_forward_clicked)
 
-        self._btn_go_end: QPushButton = QPushButton(">|")
-        self._btn_go_end.setFixedWidth(35)
+        self._btn_go_end: QPushButton = QPushButton()
+        self._btn_go_end.setFixedSize(36, 36)
         self._btn_go_end.setToolTip("Aller à la fin")
         self._btn_go_end.clicked.connect(self.go_to_end_clicked)
 
@@ -197,27 +204,30 @@ class ControlPanel(QWidget):
         self._radio_keep.toggled.connect(self._on_mode_changed)
 
         # Boutons marqueurs
-        self._btn_marker_a: QPushButton = QPushButton("Marquer A")
+        self._btn_marker_a: QPushButton = QPushButton(" A")
         self._btn_marker_a.setToolTip("Placer le marqueur de début (A)")
         self._btn_marker_a.clicked.connect(self.set_marker_a_clicked)
 
-        self._btn_marker_b: QPushButton = QPushButton("Marquer B")
+        self._btn_marker_b: QPushButton = QPushButton(" B")
         self._btn_marker_b.setToolTip("Placer le marqueur de fin (B)")
         self._btn_marker_b.setEnabled(False)
         self._btn_marker_b.clicked.connect(self.set_marker_b_clicked)
 
-        self._btn_clear: QPushButton = QPushButton("Effacer")
+        self._btn_clear: QPushButton = QPushButton()
+        self._btn_clear.setFixedSize(36, 36)
         self._btn_clear.setToolTip("Effacer tous les marqueurs")
         self._btn_clear.clicked.connect(self.clear_markers_clicked)
 
         # Undo/Redo
-        self._btn_undo: QPushButton = QPushButton("Annuler")
-        self._btn_undo.setToolTip("Annuler la dernière action")
+        self._btn_undo: QPushButton = QPushButton()
+        self._btn_undo.setFixedSize(36, 36)
+        self._btn_undo.setToolTip("Annuler la dernière action (Ctrl+Z)")
         self._btn_undo.setEnabled(False)
         self._btn_undo.clicked.connect(self.undo_clicked)
 
-        self._btn_redo: QPushButton = QPushButton("Refaire")
-        self._btn_redo.setToolTip("Refaire l'action annulée")
+        self._btn_redo: QPushButton = QPushButton()
+        self._btn_redo.setFixedSize(36, 36)
+        self._btn_redo.setToolTip("Refaire l'action annulée (Ctrl+Y)")
         self._btn_redo.setEnabled(False)
         self._btn_redo.clicked.connect(self.redo_clicked)
 
@@ -320,10 +330,10 @@ class ControlPanel(QWidget):
         """
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self._is_playing = True
-            self._btn_play_pause.setText("Pause")
+            self._btn_play_pause.setIcon(self._theme.get_icon("pause"))
         else:
             self._is_playing = False
-            self._btn_play_pause.setText("Lecture")
+            self._btn_play_pause.setIcon(self._theme.get_icon("play"))
 
     def set_marker_a_pending(self, pending: bool) -> None:
         """Met à jour l'état du marqueur A.
@@ -333,11 +343,16 @@ class ControlPanel(QWidget):
         """
         self._btn_marker_b.setEnabled(pending)
         if pending:
-            self._btn_marker_a.setText("A placé")
+            self._btn_marker_a.setText(" A OK")
             self._btn_marker_a.setProperty("success", True)
+            # Icône verte pour indiquer le succès
+            self._btn_marker_a.setIcon(
+                self._theme._icon_provider.get_success_icon("check")
+            )
         else:
-            self._btn_marker_a.setText("Marquer A")
+            self._btn_marker_a.setText(" A")
             self._btn_marker_a.setProperty("success", False)
+            self._btn_marker_a.setIcon(self._theme.get_icon("marker_a"))
         # Forcer le rafraîchissement du style
         self._btn_marker_a.style().unpolish(self._btn_marker_a)
         self._btn_marker_a.style().polish(self._btn_marker_a)
@@ -393,3 +408,27 @@ class ControlPanel(QWidget):
         duration: float = self._spin_separator_duration.value()
         color: str = "black" if self._combo_separator_color.currentIndex() == 0 else "white"
         return (enabled, duration, color)
+
+    @Slot()
+    def _update_icons(self) -> None:
+        """Met à jour les icônes selon le thème actuel."""
+        # Boutons de lecture
+        self._btn_go_start.setIcon(self._theme.get_icon("go_start"))
+        self._btn_step_back.setIcon(self._theme.get_icon("backward"))
+        self._btn_step_forward.setIcon(self._theme.get_icon("forward"))
+        self._btn_go_end.setIcon(self._theme.get_icon("go_end"))
+
+        # Play/Pause selon état
+        if self._is_playing:
+            self._btn_play_pause.setIcon(self._theme.get_icon("pause"))
+        else:
+            self._btn_play_pause.setIcon(self._theme.get_icon("play"))
+
+        # Marqueurs
+        self._btn_marker_a.setIcon(self._theme.get_icon("marker_a"))
+        self._btn_marker_b.setIcon(self._theme.get_icon("marker_b"))
+        self._btn_clear.setIcon(self._theme.get_icon("clear"))
+
+        # Undo/Redo
+        self._btn_undo.setIcon(self._theme.get_icon("undo"))
+        self._btn_redo.setIcon(self._theme.get_icon("redo"))

@@ -45,6 +45,9 @@ class ThemeManager(QObject):
         self._current_theme: str = "dark"
         self._settings = QSettings("SimpleVideoCut", "Preferences")
 
+        # Initialiser le fournisseur d'icônes
+        self._init_icon_provider()
+
     @classmethod
     def instance(cls) -> ThemeManager:
         """Retourne l'instance singleton du gestionnaire.
@@ -178,3 +181,22 @@ class ThemeManager(QObject):
         """
         self.load_saved_theme()
         self._apply_theme()
+
+    def _init_icon_provider(self) -> None:
+        """Initialise le fournisseur d'icônes."""
+        from .icons import IconProvider, set_icon_provider
+        provider = IconProvider(self)
+        set_icon_provider(provider)
+        self._icon_provider = provider
+
+    def get_icon(self, name: str, color: str | None = None):
+        """Retourne une icône par son nom.
+
+        Args:
+            name: Nom de l'icône
+            color: Couleur optionnelle
+
+        Returns:
+            QIcon
+        """
+        return self._icon_provider.get_icon(name, color)

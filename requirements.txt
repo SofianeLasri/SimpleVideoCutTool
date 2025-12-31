@@ -1,5 +1,8 @@
 # GUI Framework
 PySide6>=6.6.0
 
+# Icons
+qtawesome>=1.3.0
+
 # Build tools
 pyinstaller>=6.0.0

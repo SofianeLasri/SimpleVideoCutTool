@@ -114,14 +114,14 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
 
         # Bouton Ouvrir
-        self._btn_open: QPushButton = QPushButton("Ouvrir Vidéo")
-        self._btn_open.setMinimumWidth(120)
+        self._btn_open: QPushButton = QPushButton(" Ouvrir")
+        self._btn_open.setMinimumWidth(100)
         self._btn_open.setToolTip("Ouvrir un fichier vidéo à éditer")
         self._btn_open.clicked.connect(self._open_video)
 
         # Bouton Destination
-        self._btn_destination: QPushButton = QPushButton("Destination")
-        self._btn_destination.setMinimumWidth(100)
+        self._btn_destination: QPushButton = QPushButton(" Destination")
+        self._btn_destination.setMinimumWidth(110)
         self._btn_destination.setToolTip("Choisir le fichier de sortie")
         self._btn_destination.clicked.connect(self._set_output_destination)
 
@@ -130,14 +130,14 @@ class MainWindow(QMainWindow):
         self._lbl_destination.setProperty("secondary", True)
 
         # Bouton Exporter
-        self._btn_export: QPushButton = QPushButton("EXPORTER")
+        self._btn_export: QPushButton = QPushButton(" EXPORTER")
         self._btn_export.setMinimumWidth(120)
         self._btn_export.setProperty("accent", True)
         self._btn_export.setToolTip("Exporter la vidéo découpée")
         self._btn_export.clicked.connect(self._start_export)
 
         # Bouton Annuler encodage
-        self._btn_cancel: QPushButton = QPushButton("Annuler")
+        self._btn_cancel: QPushButton = QPushButton(" Annuler")
         self._btn_cancel.setVisible(False)
         self._btn_cancel.setProperty("danger", True)
         self._btn_cancel.clicked.connect(self._cancel_export)
@@ -145,10 +145,13 @@ class MainWindow(QMainWindow):
         # Bouton toggle thème
         self._theme_manager = ThemeManager.instance()
         self._btn_theme: QPushButton = QPushButton()
-        self._btn_theme.setFixedWidth(40)
+        self._btn_theme.setFixedSize(40, 36)
         self._btn_theme.setToolTip("Basculer thème clair/sombre")
         self._btn_theme.clicked.connect(self._toggle_theme)
         self._update_theme_button()
+
+        # Appliquer les icônes
+        self._update_toolbar_icons()
 
         layout.addWidget(self._btn_open)
         layout.addWidget(self._btn_destination)
@@ -162,15 +165,23 @@ class MainWindow(QMainWindow):
     def _update_theme_button(self) -> None:
         """Met à jour l'icône du bouton thème."""
         if self._theme_manager.is_dark:
-            self._btn_theme.setText("Light")
+            self._btn_theme.setIcon(self._theme_manager.get_icon("sun"))
         else:
-            self._btn_theme.setText("Dark")
+            self._btn_theme.setIcon(self._theme_manager.get_icon("moon"))
+
+    def _update_toolbar_icons(self) -> None:
+        """Met à jour les icônes de la barre d'outils."""
+        self._btn_open.setIcon(self._theme_manager.get_icon("open"))
+        self._btn_destination.setIcon(self._theme_manager.get_icon("save"))
+        self._btn_export.setIcon(self._theme_manager.get_icon("export"))
+        self._btn_cancel.setIcon(self._theme_manager.get_icon("times"))
+        self._update_theme_button()
 
     @Slot()
     def _toggle_theme(self) -> None:
         """Bascule entre thème clair et sombre."""
         self._theme_manager.toggle_theme()
-        self._update_theme_button()
+        self._update_toolbar_icons()
 
     def _setup_status_bar(self) -> None:
         """Configure la barre de statut."""

@@ -15,6 +15,13 @@ from .theme_definitions import (
     FLUENT_RADIUS_MEDIUM,
     FLUENT_RADIUS_LARGE,
 )
+from .icons import (
+    IconProvider,
+    get_icon,
+    get_icon_provider,
+    set_icon_provider,
+    ICON_MAP,
+)
 
 __all__ = [
     "ThemeManager",
@@ -24,4 +31,9 @@ __all__ = [
     "FLUENT_RADIUS_SMALL",
     "FLUENT_RADIUS_MEDIUM",
     "FLUENT_RADIUS_LARGE",
+    "IconProvider",
+    "get_icon",
+    "get_icon_provider",
+    "set_icon_provider",
+    "ICON_MAP",
 ]
