@@ -9,9 +9,7 @@ Ce module fournit un panneau rétractable pour:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Slot
 from PySide6.QtGui import QTextCharFormat, QColor, QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -22,20 +20,11 @@ from PySide6.QtWidgets import (
     QApplication,
 )
 
-if TYPE_CHECKING:
-    pass
+from ui.theme import ThemeManager
 
 
 class LogViewerWidget(QWidget):
     """Widget de visualisation des logs avec couleurs."""
-
-    # Couleurs par niveau de log
-    COLORS: dict[str, str] = {
-        "INFO": "#4CAF50",      # Vert
-        "WARNING": "#FF9800",   # Orange
-        "ERROR": "#f44336",     # Rouge
-        "DEBUG": "#9E9E9E",     # Gris
-    }
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialise le panneau de logs.
@@ -45,7 +34,13 @@ class LogViewerWidget(QWidget):
         """
         super().__init__(parent)
         self._is_expanded: bool = True
+        self._theme = ThemeManager.instance()
         self._setup_ui()
+
+    @property
+    def _log_colors(self) -> dict[str, str]:
+        """Retourne les couleurs de log adaptées au thème."""
+        return self._theme.get_log_colors()
 
     def _setup_ui(self) -> None:
         """Configure l'interface du widget."""
@@ -59,7 +54,6 @@ class LogViewerWidget(QWidget):
 
         self._btn_toggle: QPushButton = QPushButton("v Logs d'encodage")
         self._btn_toggle.setFlat(True)
-        self._btn_toggle.setStyleSheet("text-align: left; font-weight: bold;")
         self._btn_toggle.clicked.connect(self._toggle_expanded)
 
         self._btn_copy: QPushButton = QPushButton("Copier")
@@ -84,15 +78,6 @@ class LogViewerWidget(QWidget):
         self._text_edit.setReadOnly(True)
         self._text_edit.setMinimumHeight(80)
         self._text_edit.setMaximumHeight(150)
-        self._text_edit.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                font-family: Consolas, 'Courier New', monospace;
-                font-size: 11px;
-                border: 1px solid #3c3c3c;
-            }
-        """)
 
         main_layout.addWidget(self._text_edit)
 
@@ -133,7 +118,8 @@ class LogViewerWidget(QWidget):
 
         # Formater le message avec couleur
         format_obj: QTextCharFormat = QTextCharFormat()
-        color: str = self.COLORS.get(level.upper(), self.COLORS["INFO"])
+        colors = self._log_colors
+        color: str = colors.get(level.upper(), colors["INFO"])
         format_obj.setForeground(QColor(color))
 
         # Ajouter le préfixe de niveau
@@ -141,8 +127,8 @@ class LogViewerWidget(QWidget):
 
         cursor.insertText(level_prefix, format_obj)
 
-        # Message en blanc
-        format_obj.setForeground(QColor("#d4d4d4"))
+        # Message en couleur texte principale
+        format_obj.setForeground(self._theme.get_qcolor("text_primary"))
         cursor.insertText(f"{message}\n", format_obj)
 
         # Défiler vers le bas

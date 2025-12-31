@@ -226,6 +226,151 @@ def build_video_only_multi_segment_command(
     ]
 
 
+def build_multi_segment_with_separators_command(
+    input_path: str | Path,
+    output_path: str | Path,
+    segments: list[tuple[float, float]],
+    separator_duration: float = 2.0,
+    separator_color: str = "black",
+    has_audio: bool = True,
+    video_width: int = 1920,
+    video_height: int = 1080
+) -> list[str]:
+    """Construit une commande FFmpeg avec écrans de séparation entre segments.
+
+    Args:
+        input_path: Chemin du fichier source
+        output_path: Chemin du fichier de sortie
+        segments: Liste de tuples (start_seconds, end_seconds)
+        separator_duration: Durée des séparateurs en secondes
+        separator_color: Couleur des séparateurs ("black" ou "white")
+        has_audio: True si la vidéo a de l'audio
+        video_width: Largeur de la vidéo source
+        video_height: Hauteur de la vidéo source
+
+    Returns:
+        Liste des arguments de commande
+    """
+    if not segments:
+        raise ValueError("La liste de segments ne peut pas être vide")
+
+    # Pour un seul segment, pas de séparateur nécessaire
+    if len(segments) == 1:
+        start, end = segments[0]
+        if has_audio:
+            return build_single_segment_command(input_path, output_path, start, end)
+        else:
+            return build_video_only_multi_segment_command(input_path, output_path, segments)
+
+    ffmpeg: Path = get_ffmpeg_path()
+
+    # Construire le filter_complex avec séparateurs
+    filter_parts: list[str] = []
+    concat_inputs: list[str] = []
+
+    for i, (start, end) in enumerate(segments):
+        # Trim vidéo du segment
+        filter_parts.append(
+            f"[0:v]trim={start}:{end},setpts=PTS-STARTPTS[v{i}]"
+        )
+
+        if has_audio:
+            # Trim audio du segment
+            filter_parts.append(
+                f"[0:a]atrim={start}:{end},asetpts=PTS-STARTPTS[a{i}]"
+            )
+            concat_inputs.append(f"[v{i}][a{i}]")
+        else:
+            concat_inputs.append(f"[v{i}]")
+
+        # Ajouter séparateur après chaque segment sauf le dernier
+        if i < len(segments) - 1:
+            sep_idx = f"sep{i}"
+
+            # Générer un écran de couleur unie
+            filter_parts.append(
+                f"color=c={separator_color}:s={video_width}x{video_height}:"
+                f"d={separator_duration},format=yuv420p[{sep_idx}v]"
+            )
+
+            if has_audio:
+                # Générer du silence pour le séparateur
+                filter_parts.append(
+                    f"aevalsrc=0:d={separator_duration}:s=48000[{sep_idx}a]"
+                )
+                concat_inputs.append(f"[{sep_idx}v][{sep_idx}a]")
+            else:
+                concat_inputs.append(f"[{sep_idx}v]")
+
+    # Nombre total d'éléments: segments + séparateurs
+    n_elements = len(segments) + (len(segments) - 1)
+
+    # Concat tous les éléments
+    concat_inputs_str = "".join(concat_inputs)
+
+    if has_audio:
+        filter_parts.append(
+            f"{concat_inputs_str}concat=n={n_elements}:v=1:a=1[outv][outa]"
+        )
+    else:
+        filter_parts.append(
+            f"{concat_inputs_str}concat=n={n_elements}:v=1:a=0[outv]"
+        )
+
+    filter_complex = ";".join(filter_parts)
+
+    cmd = [
+        str(ffmpeg),
+        "-y",
+        "-i", str(input_path),
+        "-filter_complex", filter_complex,
+        "-map", "[outv]",
+    ]
+
+    if has_audio:
+        cmd.extend(["-map", "[outa]"])
+
+    cmd.extend([
+        "-c:v", "libx264",
+        "-preset", H264_PRESET,
+        "-crf", H264_CRF,
+    ])
+
+    if has_audio:
+        cmd.extend(["-c:a", "aac", "-b:a", AAC_BITRATE])
+    else:
+        cmd.append("-an")
+
+    cmd.extend([
+        "-progress", "pipe:1",
+        "-nostats",
+        str(output_path)
+    ])
+
+    return cmd
+
+
+def calculate_total_duration_with_separators(
+    segments: list[tuple[float, float]],
+    separator_duration: float
+) -> float:
+    """Calcule la durée totale incluant les séparateurs.
+
+    Args:
+        segments: Liste de tuples (start_seconds, end_seconds)
+        separator_duration: Durée de chaque séparateur en secondes
+
+    Returns:
+        Durée totale en secondes
+    """
+    if not segments:
+        return 0.0
+
+    segment_duration = sum(end - start for start, end in segments)
+    separator_count = max(0, len(segments) - 1)
+    return segment_duration + (separator_count * separator_duration)
+
+
 def parse_progress_line(line: str) -> dict[str, str]:
     """Parse une ligne de sortie -progress de FFmpeg.
 

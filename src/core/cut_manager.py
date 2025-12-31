@@ -139,6 +139,24 @@ class CutManager(QObject):
         """Nombre de régions définies."""
         return len(self._regions)
 
+    @property
+    def video_duration_ms(self) -> int:
+        """Durée de la vidéo en millisecondes."""
+        return self._video_duration_ms
+
+    def get_region(self, index: int) -> CutRegion | None:
+        """Retourne une région par son index.
+
+        Args:
+            index: Index de la région
+
+        Returns:
+            CutRegion ou None si index invalide
+        """
+        if 0 <= index < len(self._regions):
+            return self._regions[index]
+        return None
+
     def set_video_duration(self, duration_ms: int) -> None:
         """Définit la durée totale de la vidéo.
 
@@ -230,6 +248,49 @@ class CutManager(QObject):
             self.regions_changed.emit()
             return True
         return False
+
+    def edit_region(self, index: int, new_start_ms: int, new_end_ms: int) -> bool:
+        """Modifie les bornes d'une région existante.
+
+        Args:
+            index: Index de la région à modifier
+            new_start_ms: Nouveau temps de début en ms
+            new_end_ms: Nouveau temps de fin en ms
+
+        Returns:
+            True si la région a été modifiée
+        """
+        if not (0 <= index < len(self._regions)):
+            return False
+
+        # Ordonner les positions
+        start = min(new_start_ms, new_end_ms)
+        end = max(new_start_ms, new_end_ms)
+
+        # Vérifier les bornes
+        if start < 0 or end > self._video_duration_ms:
+            return False
+
+        # Durée minimale
+        if end - start < 100:
+            return False
+
+        self._save_history()
+
+        # Conserver la couleur
+        old_color = self._regions[index].color
+
+        self._regions[index] = CutRegion(
+            start_ms=start,
+            end_ms=end,
+            color=old_color
+        )
+
+        # Re-trier par position de début
+        self._regions.sort(key=lambda r: r.start_ms)
+
+        self.regions_changed.emit()
+        return True
 
     def remove_region_at_position(self, position_ms: int) -> bool:
         """Supprime la région contenant une position.

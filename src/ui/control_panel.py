@@ -16,6 +16,9 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -96,6 +99,10 @@ class ControlPanel(QWidget):
 
     redo_clicked = Signal()
     """Émis pour refaire."""
+
+    # Signaux - Séparateurs
+    separator_settings_changed = Signal(bool, float, str)
+    """Émis quand les paramètres de séparateur changent (enabled, duration, color)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialise le panneau de contrôles.
@@ -227,6 +234,51 @@ class ControlPanel(QWidget):
 
         main_layout.addLayout(markers_layout)
 
+        # Ligne 3: Paramètres de séparateur
+        separator_layout: QHBoxLayout = QHBoxLayout()
+        separator_layout.setSpacing(10)
+
+        separator_label: QLabel = QLabel("Séparateurs entre segments:")
+        self._chk_separator: QCheckBox = QCheckBox("Activer")
+        self._chk_separator.setToolTip(
+            "Ajouter un écran de séparation entre les segments coupés"
+        )
+        self._chk_separator.stateChanged.connect(self._on_separator_settings_changed)
+
+        duration_label: QLabel = QLabel("Durée:")
+        self._spin_separator_duration: QDoubleSpinBox = QDoubleSpinBox()
+        self._spin_separator_duration.setRange(0.5, 10.0)
+        self._spin_separator_duration.setValue(2.0)
+        self._spin_separator_duration.setSingleStep(0.5)
+        self._spin_separator_duration.setSuffix(" s")
+        self._spin_separator_duration.setToolTip("Durée du séparateur en secondes")
+        self._spin_separator_duration.setEnabled(False)
+        self._spin_separator_duration.valueChanged.connect(
+            self._on_separator_settings_changed
+        )
+
+        color_label: QLabel = QLabel("Couleur:")
+        self._combo_separator_color: QComboBox = QComboBox()
+        self._combo_separator_color.addItems(["Noir", "Blanc"])
+        self._combo_separator_color.setToolTip("Couleur de l'écran de séparation")
+        self._combo_separator_color.setEnabled(False)
+        self._combo_separator_color.setFixedWidth(80)
+        self._combo_separator_color.currentIndexChanged.connect(
+            self._on_separator_settings_changed
+        )
+
+        separator_layout.addWidget(separator_label)
+        separator_layout.addWidget(self._chk_separator)
+        separator_layout.addSpacing(20)
+        separator_layout.addWidget(duration_label)
+        separator_layout.addWidget(self._spin_separator_duration)
+        separator_layout.addSpacing(10)
+        separator_layout.addWidget(color_label)
+        separator_layout.addWidget(self._combo_separator_color)
+        separator_layout.addStretch()
+
+        main_layout.addLayout(separator_layout)
+
     @Slot()
     def _on_play_pause_clicked(self) -> None:
         """Gère le clic sur play/pause."""
@@ -282,10 +334,13 @@ class ControlPanel(QWidget):
         self._btn_marker_b.setEnabled(pending)
         if pending:
             self._btn_marker_a.setText("A placé")
-            self._btn_marker_a.setStyleSheet("background-color: #4CAF50; color: white;")
+            self._btn_marker_a.setProperty("success", True)
         else:
             self._btn_marker_a.setText("Marquer A")
-            self._btn_marker_a.setStyleSheet("")
+            self._btn_marker_a.setProperty("success", False)
+        # Forcer le rafraîchissement du style
+        self._btn_marker_a.style().unpolish(self._btn_marker_a)
+        self._btn_marker_a.style().polish(self._btn_marker_a)
 
     def set_undo_enabled(self, enabled: bool) -> None:
         """Active/désactive le bouton Annuler."""
@@ -314,3 +369,27 @@ class ControlPanel(QWidget):
     def is_keep_mode(self) -> bool:
         """Retourne True si le mode "garder" est sélectionné."""
         return self._radio_keep.isChecked()
+
+    @Slot()
+    def _on_separator_settings_changed(self) -> None:
+        """Gère le changement des paramètres de séparateur."""
+        enabled: bool = self._chk_separator.isChecked()
+        self._spin_separator_duration.setEnabled(enabled)
+        self._combo_separator_color.setEnabled(enabled)
+
+        duration: float = self._spin_separator_duration.value()
+        color: str = "black" if self._combo_separator_color.currentIndex() == 0 else "white"
+
+        self.separator_settings_changed.emit(enabled, duration, color)
+
+    def get_separator_settings(self) -> tuple[bool, float, str]:
+        """Retourne les paramètres de séparateur.
+
+        Returns:
+            Tuple (enabled, duration_seconds, color)
+            color est "black" ou "white"
+        """
+        enabled: bool = self._chk_separator.isChecked()
+        duration: float = self._spin_separator_duration.value()
+        color: str = "black" if self._combo_separator_color.currentIndex() == 0 else "white"
+        return (enabled, duration, color)

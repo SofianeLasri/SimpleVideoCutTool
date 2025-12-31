@@ -25,6 +25,7 @@ from PySide6.QtCore import Qt
 
 from utils.logging_config import setup_app_logging
 from ui.main_window import MainWindow
+from ui.theme import ThemeManager
 
 
 def main() -> NoReturn:
@@ -43,6 +44,11 @@ def main() -> NoReturn:
     app.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
+
+    # Initialiser et appliquer le thème
+    theme_manager = ThemeManager.instance()
+    theme_manager.apply_initial_theme()
+    logger.info(f"Thème appliqué: {theme_manager.current_theme}")
 
     # Créer et afficher la fenêtre principale
     window: MainWindow = MainWindow()

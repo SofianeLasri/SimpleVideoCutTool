@@ -33,9 +33,11 @@ from core.video_info import VideoInfo, VideoMetadata
 from core.video_processor import VideoProcessor
 from utils.logging_config import get_app_logger
 from ui.control_panel import ControlPanel
+from ui.dialogs import RegionEditDialog
 from ui.log_viewer import LogViewerWidget
 from ui.timeline_widget import TimelineWidget
 from ui.video_player import VideoPlayerWidget
+from ui.theme import ThemeManager
 
 if TYPE_CHECKING:
     pass
@@ -125,41 +127,50 @@ class MainWindow(QMainWindow):
 
         # Label destination
         self._lbl_destination: QLabel = QLabel("Aucune destination")
-        self._lbl_destination.setStyleSheet("color: #888888;")
+        self._lbl_destination.setProperty("secondary", True)
 
         # Bouton Exporter
         self._btn_export: QPushButton = QPushButton("EXPORTER")
         self._btn_export.setMinimumWidth(120)
-        self._btn_export.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:disabled {
-                background-color: #888888;
-            }
-        """)
+        self._btn_export.setProperty("accent", True)
         self._btn_export.setToolTip("Exporter la vidéo découpée")
         self._btn_export.clicked.connect(self._start_export)
 
         # Bouton Annuler encodage
         self._btn_cancel: QPushButton = QPushButton("Annuler")
         self._btn_cancel.setVisible(False)
-        self._btn_cancel.setStyleSheet("background-color: #f44336; color: white;")
+        self._btn_cancel.setProperty("danger", True)
         self._btn_cancel.clicked.connect(self._cancel_export)
+
+        # Bouton toggle thème
+        self._theme_manager = ThemeManager.instance()
+        self._btn_theme: QPushButton = QPushButton()
+        self._btn_theme.setFixedWidth(40)
+        self._btn_theme.setToolTip("Basculer thème clair/sombre")
+        self._btn_theme.clicked.connect(self._toggle_theme)
+        self._update_theme_button()
 
         layout.addWidget(self._btn_open)
         layout.addWidget(self._btn_destination)
         layout.addWidget(self._lbl_destination, stretch=1)
         layout.addWidget(self._btn_export)
         layout.addWidget(self._btn_cancel)
+        layout.addWidget(self._btn_theme)
 
         return layout
+
+    def _update_theme_button(self) -> None:
+        """Met à jour l'icône du bouton thème."""
+        if self._theme_manager.is_dark:
+            self._btn_theme.setText("Light")
+        else:
+            self._btn_theme.setText("Dark")
+
+    @Slot()
+    def _toggle_theme(self) -> None:
+        """Bascule entre thème clair et sombre."""
+        self._theme_manager.toggle_theme()
+        self._update_theme_button()
 
     def _setup_status_bar(self) -> None:
         """Configure la barre de statut."""
@@ -208,6 +219,8 @@ class MainWindow(QMainWindow):
 
         # Timeline
         self._timeline.seek_requested.connect(self._video_player.seek)
+        self._timeline.region_edit_requested.connect(self._on_edit_region)
+        self._timeline.region_delete_requested.connect(self._on_delete_region)
 
         # Processeur vidéo
         self._video_processor.encoding_started.connect(self._on_encoding_started)
@@ -303,7 +316,10 @@ class MainWindow(QMainWindow):
 
         self._current_output_path = str(output_path)
         self._lbl_destination.setText(str(output_path))
-        self._lbl_destination.setStyleSheet("color: #4CAF50;")
+        self._lbl_destination.setProperty("secondary", False)
+        self._lbl_destination.setProperty("success", True)
+        self._lbl_destination.style().unpolish(self._lbl_destination)
+        self._lbl_destination.style().polish(self._lbl_destination)
 
     @Slot()
     def _set_output_destination(self) -> None:
@@ -326,7 +342,10 @@ class MainWindow(QMainWindow):
 
         self._current_output_path = file_path
         self._lbl_destination.setText(file_path)
-        self._lbl_destination.setStyleSheet("color: #4CAF50;")
+        self._lbl_destination.setProperty("secondary", False)
+        self._lbl_destination.setProperty("success", True)
+        self._lbl_destination.style().unpolish(self._lbl_destination)
+        self._lbl_destination.style().polish(self._lbl_destination)
         self._update_ui_state()
 
     # Slots - Marqueurs
@@ -380,6 +399,46 @@ class MainWindow(QMainWindow):
         """Gère l'effacement du marqueur A."""
         self._timeline.set_pending_marker_a(None)
         self._control_panel.set_marker_a_pending(False)
+
+    @Slot(int)
+    def _on_edit_region(self, index: int) -> None:
+        """Ouvre le dialogue d'édition pour une région."""
+        region = self._cut_manager.get_region(index)
+        if region is None:
+            return
+
+        dialog = RegionEditDialog(
+            region,
+            self._cut_manager.video_duration_ms,
+            self
+        )
+
+        if dialog.exec():
+            new_start, new_end = dialog.get_new_bounds()
+            if self._cut_manager.edit_region(index, new_start, new_end):
+                self._log_viewer.append_log(
+                    f"Région modifiée: {self._format_time(new_start)} - {self._format_time(new_end)}",
+                    "INFO"
+                )
+
+    @Slot(int)
+    def _on_delete_region(self, index: int) -> None:
+        """Supprime une région après confirmation."""
+        region = self._cut_manager.get_region(index)
+        if region is None:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Supprimer la région",
+            f"Voulez-vous supprimer cette région ?\n"
+            f"{self._format_time(region.start_ms)} - {self._format_time(region.end_ms)}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self._cut_manager.remove_region(index)
+            self._log_viewer.append_log("Région supprimée", "INFO")
 
     # Slots - Lecteur
     @Slot(int)
@@ -445,8 +504,15 @@ class MainWindow(QMainWindow):
 
         # Lancer l'encodage
         has_audio: bool = self._video_metadata.has_audio if self._video_metadata else True
+        video_width: int = self._video_metadata.width if self._video_metadata else 1920
+        video_height: int = self._video_metadata.height if self._video_metadata else 1080
+
+        # Paramètres de séparateur
+        sep_enabled, sep_duration, sep_color = self._control_panel.get_separator_settings()
 
         self._logger.info(f"Démarrage export: {len(segments)} segment(s)")
+        if sep_enabled and len(segments) > 1:
+            self._logger.info(f"Séparateurs: {sep_duration}s, {sep_color}")
         self._log_viewer.clear()
         self._log_viewer.set_expanded(True)
 
@@ -454,7 +520,12 @@ class MainWindow(QMainWindow):
             self._current_video_path,
             self._current_output_path,
             segments,
-            has_audio
+            has_audio,
+            separator_enabled=sep_enabled,
+            separator_duration=sep_duration,
+            separator_color=sep_color,
+            video_width=video_width,
+            video_height=video_height
         )
 
     @Slot()

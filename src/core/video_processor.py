@@ -18,7 +18,9 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from utils.ffmpeg_wrapper import (
     build_multi_segment_command,
+    build_multi_segment_with_separators_command,
     build_video_only_multi_segment_command,
+    calculate_total_duration_with_separators,
     parse_progress_line,
     parse_time_to_ms,
 )
@@ -218,7 +220,12 @@ class VideoProcessor(QObject):
         input_path: str | Path,
         output_path: str | Path,
         segments: list[tuple[float, float]],
-        has_audio: bool = True
+        has_audio: bool = True,
+        separator_enabled: bool = False,
+        separator_duration: float = 2.0,
+        separator_color: str = "black",
+        video_width: int = 1920,
+        video_height: int = 1080
     ) -> bool:
         """Lance l'encodage d'une vidéo.
 
@@ -227,6 +234,11 @@ class VideoProcessor(QObject):
             output_path: Chemin du fichier de sortie
             segments: Liste de tuples (start_sec, end_sec) à garder
             has_audio: True si la vidéo a une piste audio
+            separator_enabled: True pour ajouter des écrans de séparation
+            separator_duration: Durée des séparateurs en secondes
+            separator_color: Couleur des séparateurs ("black" ou "white")
+            video_width: Largeur de la vidéo source
+            video_height: Hauteur de la vidéo source
 
         Returns:
             True si l'encodage a démarré
@@ -247,11 +259,29 @@ class VideoProcessor(QObject):
         self._session_logger.info(f"Destination: {output_path}")
         self._session_logger.info(f"Segments: {segments}")
         self._session_logger.info(f"Audio: {'Oui' if has_audio else 'Non'}")
+        if separator_enabled:
+            self._session_logger.info(
+                f"Séparateurs: {separator_duration}s, couleur={separator_color}"
+            )
 
         # Construire la commande FFmpeg
         try:
-            if has_audio:
-                command: list[str] = build_multi_segment_command(
+            # Utiliser séparateurs seulement si activés ET plusieurs segments
+            use_separators: bool = separator_enabled and len(segments) > 1
+
+            if use_separators:
+                command: list[str] = build_multi_segment_with_separators_command(
+                    input_path=input_path,
+                    output_path=output_path,
+                    segments=segments,
+                    separator_duration=separator_duration,
+                    separator_color=separator_color,
+                    has_audio=has_audio,
+                    video_width=video_width,
+                    video_height=video_height
+                )
+            elif has_audio:
+                command = build_multi_segment_command(
                     input_path, output_path, segments
                 )
             else:
@@ -265,9 +295,14 @@ class VideoProcessor(QObject):
             return False
 
         # Calculer la durée totale de sortie
-        total_duration_ms: int = int(
-            sum((end - start) * 1000 for start, end in segments)
-        )
+        if use_separators:
+            total_duration_ms = int(
+                calculate_total_duration_with_separators(segments, separator_duration) * 1000
+            )
+        else:
+            total_duration_ms = int(
+                sum((end - start) * 1000 for start, end in segments)
+            )
 
         # Créer et démarrer le worker
         self._worker = EncodingWorker(

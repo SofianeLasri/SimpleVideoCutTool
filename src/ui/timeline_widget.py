@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QRect, Signal, QPoint
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen, QBrush, QFont
-from PySide6.QtWidgets import QWidget, QSizePolicy
+from PySide6.QtCore import Qt, QRect, Signal, QPoint, Slot
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen, QBrush, QFont, QContextMenuEvent
+from PySide6.QtWidgets import QWidget, QSizePolicy, QMenu
+
+from ui.theme import ThemeManager
 
 if TYPE_CHECKING:
     from core.cut_manager import CutRegion
@@ -29,14 +31,11 @@ class TimelineWidget(QWidget):
     region_clicked = Signal(int)
     """Émis quand une région est cliquée (index)."""
 
-    # Couleurs
-    COLOR_BACKGROUND: QColor = QColor("#1e1e1e")
-    COLOR_TRACK: QColor = QColor("#3c3c3c")
-    COLOR_TRACK_BORDER: QColor = QColor("#555555")
-    COLOR_PLAYHEAD: QColor = QColor("#ffffff")
-    COLOR_MARKER_A: QColor = QColor("#2196F3")
-    COLOR_TIME_TEXT: QColor = QColor("#aaaaaa")
-    COLOR_REGION_DEFAULT: QColor = QColor("#4CAF50")
+    region_edit_requested = Signal(int)
+    """Émis quand l'utilisateur demande à éditer une région (index)."""
+
+    region_delete_requested = Signal(int)
+    """Émis quand l'utilisateur demande à supprimer une région (index)."""
 
     # Dimensions
     TRACK_HEIGHT: int = 40
@@ -58,8 +57,39 @@ class TimelineWidget(QWidget):
         self._regions: list[CutRegion] = []
         self._pending_marker_a: int | None = None
         self._hovered_region: int | None = None
+        self._theme = ThemeManager.instance()
 
         self._setup_ui()
+        self._theme.theme_changed.connect(self._on_theme_changed)
+
+    @Slot(str)
+    def _on_theme_changed(self, _theme: str) -> None:
+        """Redessine lors du changement de thème."""
+        self.update()
+
+    @property
+    def _color_background(self) -> QColor:
+        return self._theme.get_qcolor("background")
+
+    @property
+    def _color_track(self) -> QColor:
+        return self._theme.get_qcolor("track")
+
+    @property
+    def _color_track_border(self) -> QColor:
+        return self._theme.get_qcolor("border_strong")
+
+    @property
+    def _color_playhead(self) -> QColor:
+        return self._theme.get_qcolor("playhead")
+
+    @property
+    def _color_marker_a(self) -> QColor:
+        return self._theme.get_qcolor("marker_a")
+
+    @property
+    def _color_time_text(self) -> QColor:
+        return self._theme.get_qcolor("text_secondary")
 
     def _setup_ui(self) -> None:
         """Configure l'interface du widget."""
@@ -128,7 +158,7 @@ class TimelineWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Fond
-        painter.fillRect(self.rect(), self.COLOR_BACKGROUND)
+        painter.fillRect(self.rect(), self._color_background)
 
         if self._duration_ms <= 0:
             self._draw_empty_state(painter)
@@ -157,7 +187,7 @@ class TimelineWidget(QWidget):
 
     def _draw_empty_state(self, painter: QPainter) -> None:
         """Dessine l'état vide (pas de vidéo)."""
-        painter.setPen(self.COLOR_TIME_TEXT)
+        painter.setPen(self._color_time_text)
         painter.drawText(
             self.rect(),
             Qt.AlignmentFlag.AlignCenter,
@@ -167,10 +197,10 @@ class TimelineWidget(QWidget):
     def _draw_track(self, painter: QPainter, track_rect: QRect) -> None:
         """Dessine la piste principale."""
         # Fond de la piste
-        painter.fillRect(track_rect, self.COLOR_TRACK)
+        painter.fillRect(track_rect, self._color_track)
 
         # Bordure
-        painter.setPen(QPen(self.COLOR_TRACK_BORDER, 1))
+        painter.setPen(QPen(self._color_track_border, 1))
         painter.drawRect(track_rect)
 
     def _draw_time_markers(self, painter: QPainter, track_rect: QRect) -> None:
@@ -178,7 +208,7 @@ class TimelineWidget(QWidget):
         if self._duration_ms <= 0:
             return
 
-        painter.setPen(self.COLOR_TIME_TEXT)
+        painter.setPen(self._color_time_text)
         font: QFont = painter.font()
         font.setPointSize(8)
         painter.setFont(font)
@@ -260,12 +290,12 @@ class TimelineWidget(QWidget):
         x: int = self._ms_to_x(self._pending_marker_a, track_rect)
 
         # Ligne verticale
-        pen: QPen = QPen(self.COLOR_MARKER_A, self.MARKER_WIDTH)
+        pen: QPen = QPen(self._color_marker_a, self.MARKER_WIDTH)
         painter.setPen(pen)
         painter.drawLine(x, track_rect.top(), x, track_rect.bottom())
 
         # Triangle indicateur
-        painter.setBrush(QBrush(self.COLOR_MARKER_A))
+        painter.setBrush(QBrush(self._color_marker_a))
         painter.drawPolygon([
             QPoint(x - 6, track_rect.top()),
             QPoint(x + 6, track_rect.top()),
@@ -277,12 +307,12 @@ class TimelineWidget(QWidget):
         x: int = self._ms_to_x(self._position_ms, track_rect)
 
         # Ligne verticale
-        pen: QPen = QPen(self.COLOR_PLAYHEAD, self.PLAYHEAD_WIDTH)
+        pen: QPen = QPen(self._color_playhead, self.PLAYHEAD_WIDTH)
         painter.setPen(pen)
         painter.drawLine(x, track_rect.top() - 5, x, track_rect.bottom() + 5)
 
         # Triangle en haut
-        painter.setBrush(QBrush(self.COLOR_PLAYHEAD))
+        painter.setBrush(QBrush(self._color_playhead))
         painter.drawPolygon([
             QPoint(x - 5, track_rect.top() - 5),
             QPoint(x + 5, track_rect.top() - 5),
@@ -350,3 +380,36 @@ class TimelineWidget(QWidget):
         if self._hovered_region is not None:
             self._hovered_region = None
             self.update()
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        """Affiche le menu contextuel pour les régions."""
+        if self._duration_ms <= 0 or not self._regions:
+            return
+
+        track_rect: QRect = self._get_track_rect()
+        pos_ms: int = self._x_to_ms(event.pos().x(), track_rect)
+
+        # Trouver la région sous le curseur
+        region_index: int | None = None
+        for i, region in enumerate(self._regions):
+            if region.start_ms <= pos_ms <= region.end_ms:
+                region_index = i
+                break
+
+        if region_index is None:
+            return
+
+        # Créer le menu contextuel
+        menu = QMenu(self)
+
+        edit_action = menu.addAction("Modifier...")
+        edit_action.triggered.connect(
+            lambda: self.region_edit_requested.emit(region_index)
+        )
+
+        delete_action = menu.addAction("Supprimer")
+        delete_action.triggered.connect(
+            lambda: self.region_delete_requested.emit(region_index)
+        )
+
+        menu.exec(event.globalPos())
