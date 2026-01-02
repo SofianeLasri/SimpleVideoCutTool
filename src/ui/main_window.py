@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
-    QMessageBox,
     QProgressBar,
     QPushButton,
     QStatusBar,
@@ -35,7 +34,7 @@ from core.video_processor import VideoProcessor
 from utils.ffmpeg_wrapper import is_av1_hardware_decode_available
 from utils.logging_config import get_app_logger
 from ui.control_panel import ControlPanel
-from ui.dialogs import AboutDialog, RegionEditDialog
+from ui.dialogs import AboutDialog, RegionEditDialog, ThemedMessageBox
 from ui.log_viewer import LogViewerWidget
 from ui.timeline_widget import TimelineWidget
 from ui.video_player import VideoPlayerWidget
@@ -376,7 +375,7 @@ class MainWindow(QMainWindow):
             # Avertissement pour AV1 si pas de décodage matériel
             if (self._video_metadata.video_codec.lower() == "av1"
                     and not is_av1_hardware_decode_available()):
-                QMessageBox.warning(
+                ThemedMessageBox.warning(
                     self,
                     "Codec AV1 non supporté",
                     "Ce fichier utilise le codec AV1, mais votre matériel "
@@ -387,7 +386,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self._logger.error(f"Erreur chargement: {e}")
-            QMessageBox.critical(
+            ThemedMessageBox.critical(
                 self,
                 "Erreur",
                 f"Impossible de charger la vidéo:\n{e}"
@@ -516,15 +515,12 @@ class MainWindow(QMainWindow):
         if region is None:
             return
 
-        reply = QMessageBox.question(
+        if ThemedMessageBox.question(
             self,
             "Supprimer la région",
             f"Voulez-vous supprimer cette région ?\n"
-            f"{self._format_time(region.start_ms)} - {self._format_time(region.end_ms)}",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
+            f"{self._format_time(region.start_ms)} - {self._format_time(region.end_ms)}"
+        ):
             self._cut_manager.remove_region(index)
             self._log_viewer.append_log("Région supprimée", "INFO")
 
@@ -566,7 +562,7 @@ class MainWindow(QMainWindow):
         codec = self._video_metadata.video_codec if self._video_metadata else None
 
         if codec and codec.lower() == "av1":
-            QMessageBox.warning(
+            ThemedMessageBox.warning(
                 self,
                 "Codec AV1 non supporté",
                 "La prévisualisation des vidéos AV1 n'est pas disponible "
@@ -575,7 +571,7 @@ class MainWindow(QMainWindow):
                 "Pour prévisualiser, convertissez la vidéo en H.264."
             )
         else:
-            QMessageBox.warning(
+            ThemedMessageBox.warning(
                 self,
                 "Erreur de lecture",
                 "Impossible de lire cette vidéo pour la prévisualisation.\n\n"
@@ -591,13 +587,11 @@ class MainWindow(QMainWindow):
 
         # Vérifier si le fichier existe
         if Path(self._current_output_path).exists():
-            reply: QMessageBox.StandardButton = QMessageBox.question(
+            if not ThemedMessageBox.question(
                 self,
                 "Fichier existant",
-                f"Le fichier existe déjà:\n{self._current_output_path}\n\nVoulez-vous le remplacer?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                f"Le fichier existe déjà:\n{self._current_output_path}\n\nVoulez-vous le remplacer?"
+            ):
                 return
 
         # Obtenir les segments
@@ -605,7 +599,7 @@ class MainWindow(QMainWindow):
         segments: list[tuple[float, float]] = self._cut_manager.get_final_segments(keep_mode)
 
         if not segments:
-            QMessageBox.warning(
+            ThemedMessageBox.warning(
                 self,
                 "Attention",
                 "Aucun segment à exporter. Placez des marqueurs A-B d'abord."
@@ -670,7 +664,7 @@ class MainWindow(QMainWindow):
             if log_path:
                 self._log_viewer.append_log(f"Log sauvegardé: {log_path}", "INFO")
 
-            QMessageBox.information(
+            ThemedMessageBox.information(
                 self,
                 "Succès",
                 f"Vidéo exportée avec succès!\n\n{self._current_output_path}"
@@ -678,7 +672,7 @@ class MainWindow(QMainWindow):
         else:
             self._status_label.setText("Échec de l'exportation")
             self._log_viewer.append_log(message, "ERROR")
-            QMessageBox.warning(
+            ThemedMessageBox.warning(
                 self,
                 "Erreur",
                 f"L'exportation a échoué:\n{message}"
@@ -712,13 +706,11 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: object) -> None:
         """Gère la fermeture de la fenêtre."""
         if self._video_processor.is_encoding:
-            reply: QMessageBox.StandardButton = QMessageBox.question(
+            if not ThemedMessageBox.question(
                 self,
                 "Encodage en cours",
-                "Un encodage est en cours. Voulez-vous vraiment quitter?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                "Un encodage est en cours. Voulez-vous vraiment quitter?"
+            ):
                 event.ignore()  # type: ignore[union-attr]
                 return
 
