@@ -96,7 +96,7 @@ class AboutDialog(QDialog):
         layout.addSpacing(8)
 
         # Version
-        version_label = QLabel("Version 1.0")
+        version_label = QLabel("Version 1.1")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
 

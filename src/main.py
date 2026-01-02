@@ -38,7 +38,7 @@ def main() -> NoReturn:
     app: QApplication = QApplication(sys.argv)
     app.setApplicationName("Simple Video Cut Tool")
     app.setOrganizationName("SimpleVideoCut")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion("1.1.0")
 
     # Activer le support des hauts DPI
     app.setHighDpiScaleFactorRoundingPolicy(
