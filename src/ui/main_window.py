@@ -35,7 +35,7 @@ from core.video_processor import VideoProcessor
 from utils.ffmpeg_wrapper import is_av1_hardware_decode_available
 from utils.logging_config import get_app_logger
 from ui.control_panel import ControlPanel
-from ui.dialogs import RegionEditDialog
+from ui.dialogs import AboutDialog, RegionEditDialog
 from ui.log_viewer import LogViewerWidget
 from ui.timeline_widget import TimelineWidget
 from ui.video_player import VideoPlayerWidget
@@ -218,6 +218,17 @@ class MainWindow(QMainWindow):
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
 
+        # Menu Lecture
+        playback_menu = menubar.addMenu("&Lecture")
+
+        self._action_go_start = QAction("Aller au &début", self)
+        self._action_go_start.setShortcut(QKeySequence(Qt.Key.Key_Home))
+        playback_menu.addAction(self._action_go_start)
+
+        self._action_go_end = QAction("Aller à la &fin", self)
+        self._action_go_end.setShortcut(QKeySequence(Qt.Key.Key_End))
+        playback_menu.addAction(self._action_go_end)
+
         # Menu Aide
         help_menu = menubar.addMenu("&Aide")
 
@@ -245,11 +256,19 @@ class MainWindow(QMainWindow):
         self._video_player.media_loaded.connect(self._on_media_loaded)
         self._video_player.error_occurred.connect(self._on_player_error)
 
+        # Actions menu Lecture
+        self._action_go_start.triggered.connect(self._video_player.go_to_start)
+        self._action_go_end.triggered.connect(self._video_player.go_to_end)
+
         # Contrôles de lecture
         self._control_panel.play_clicked.connect(self._video_player.play)
         self._control_panel.pause_clicked.connect(self._video_player.pause)
-        self._control_panel.go_to_start_clicked.connect(self._video_player.go_to_start)
-        self._control_panel.go_to_end_clicked.connect(self._video_player.go_to_end)
+        self._control_panel.step_backward_5_clicked.connect(
+            lambda: self._video_player.step_backward(5000)
+        )
+        self._control_panel.step_forward_5_clicked.connect(
+            lambda: self._video_player.step_forward(5000)
+        )
         self._control_panel.step_forward_clicked.connect(
             lambda: self._video_player.step_forward(1000)
         )
@@ -678,18 +697,8 @@ class MainWindow(QMainWindow):
     # Utilitaires
     def _show_about(self) -> None:
         """Affiche la boîte de dialogue À propos."""
-        QMessageBox.about(
-            self,
-            "À propos de Simple Video Cut Tool",
-            "<h3>Simple Video Cut Tool</h3>"
-            "<p>Outil de découpe vidéo utilisant FFmpeg.</p>"
-            "<p>Développé par Sofiane Lasri<br>"
-            '<a href="https://sofianelasri.fr">https://sofianelasri.fr</a></p>'
-            "<p>Code source :<br>"
-            '<a href="https://github.com/SofianeLasri/SimpleVideoCutTool">'
-            "https://github.com/SofianeLasri/SimpleVideoCutTool</a></p>"
-            "<p>Version 1.0</p>"
-        )
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     @staticmethod
     def _format_time(ms: int) -> str:

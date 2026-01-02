@@ -65,11 +65,11 @@ class ControlPanel(QWidget):
     stop_clicked = Signal()
     """Émis quand le bouton stop est cliqué."""
 
-    go_to_start_clicked = Signal()
-    """Émis pour aller au début."""
+    step_backward_5_clicked = Signal()
+    """Émis pour reculer de 5 secondes."""
 
-    go_to_end_clicked = Signal()
-    """Émis pour aller à la fin."""
+    step_forward_5_clicked = Signal()
+    """Émis pour avancer de 5 secondes."""
 
     step_forward_clicked = Signal()
     """Émis pour avancer d'un pas."""
@@ -132,10 +132,10 @@ class ControlPanel(QWidget):
         playback_layout.setSpacing(5)
 
         # Boutons de navigation
-        self._btn_go_start: QPushButton = QPushButton()
-        self._btn_go_start.setFixedSize(36, 36)
-        self._btn_go_start.setToolTip("Aller au début")
-        self._btn_go_start.clicked.connect(self.go_to_start_clicked)
+        self._btn_step_back_5: QPushButton = QPushButton()
+        self._btn_step_back_5.setFixedSize(36, 36)
+        self._btn_step_back_5.setToolTip("Reculer de 5 secondes")
+        self._btn_step_back_5.clicked.connect(self.step_backward_5_clicked)
 
         self._btn_step_back: QPushButton = QPushButton()
         self._btn_step_back.setFixedSize(36, 36)
@@ -153,10 +153,10 @@ class ControlPanel(QWidget):
         self._btn_step_forward.setToolTip("Avancer de 1 seconde")
         self._btn_step_forward.clicked.connect(self.step_forward_clicked)
 
-        self._btn_go_end: QPushButton = QPushButton()
-        self._btn_go_end.setFixedSize(36, 36)
-        self._btn_go_end.setToolTip("Aller à la fin")
-        self._btn_go_end.clicked.connect(self.go_to_end_clicked)
+        self._btn_step_forward_5: QPushButton = QPushButton()
+        self._btn_step_forward_5.setFixedSize(36, 36)
+        self._btn_step_forward_5.setToolTip("Avancer de 5 secondes")
+        self._btn_step_forward_5.clicked.connect(self.step_forward_5_clicked)
 
         # Label temps
         self._lbl_time: QLabel = QLabel("00:00:00 / 00:00:00")
@@ -172,11 +172,11 @@ class ControlPanel(QWidget):
         self._slider_volume.setToolTip("Volume")
         self._slider_volume.valueChanged.connect(self._on_volume_changed)
 
-        playback_layout.addWidget(self._btn_go_start)
+        playback_layout.addWidget(self._btn_step_back_5)
         playback_layout.addWidget(self._btn_step_back)
         playback_layout.addWidget(self._btn_play_pause)
         playback_layout.addWidget(self._btn_step_forward)
-        playback_layout.addWidget(self._btn_go_end)
+        playback_layout.addWidget(self._btn_step_forward_5)
         playback_layout.addStretch()
         playback_layout.addWidget(self._lbl_time)
         playback_layout.addStretch()
@@ -371,11 +371,11 @@ class ControlPanel(QWidget):
         Args:
             enabled: True pour activer
         """
-        self._btn_go_start.setEnabled(enabled)
+        self._btn_step_back_5.setEnabled(enabled)
         self._btn_step_back.setEnabled(enabled)
         self._btn_play_pause.setEnabled(enabled)
         self._btn_step_forward.setEnabled(enabled)
-        self._btn_go_end.setEnabled(enabled)
+        self._btn_step_forward_5.setEnabled(enabled)
         self._btn_marker_a.setEnabled(enabled)
         self._btn_clear.setEnabled(enabled)
         self._radio_keep.setEnabled(enabled)
@@ -413,10 +413,10 @@ class ControlPanel(QWidget):
     def _update_icons(self) -> None:
         """Met à jour les icônes selon le thème actuel."""
         # Boutons de lecture
-        self._btn_go_start.setIcon(self._theme.get_icon("go_start"))
-        self._btn_step_back.setIcon(self._theme.get_icon("backward"))
-        self._btn_step_forward.setIcon(self._theme.get_icon("forward"))
-        self._btn_go_end.setIcon(self._theme.get_icon("go_end"))
+        self._btn_step_back_5.setIcon(self._theme.get_icon("backward"))
+        self._btn_step_back.setIcon(self._theme.get_icon("step_backward"))
+        self._btn_step_forward.setIcon(self._theme.get_icon("step_forward"))
+        self._btn_step_forward_5.setIcon(self._theme.get_icon("forward"))
 
         # Play/Pause selon état
         if self._is_playing:
